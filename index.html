@@ -1,80 +1,67 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>神話SNS</title>
-  <style>
-    body {
-      font-family: "Helvetica Neue", Arial, sans-serif;
-      background-color: #fff;
-      color: #333;
-      max-width: 800px;
-      margin: auto;
-      padding: 20px;
-    }
-    h1 { text-align: center; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-    form, .post, .chat-box {
-      border: 1px solid #eee; border-radius: 8px; padding: 15px; margin: 15px 0; background: #fafafa;
-    }
-    input, textarea {
-      width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px;
-    }
-    button { background: #333; color: #fff; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; }
-    button:hover { background: #555; }
-    .verified { color: #0078ff; font-weight: bold; }
-    .like { color: #e74c3c; cursor: pointer; }
-    .friend { cursor: pointer; color: #0078ff; }
-    .chat-box { display: none; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>神話作成</title>
+<style>
+  body { font-family: Arial; max-width: 800px; margin:auto; padding:20px; background:#fff; color:#333; }
+  h1 { text-align:center; border-bottom:2px solid #eee; padding-bottom:10px; }
+  form, .post, .modal { border:1px solid #eee; border-radius:8px; padding:15px; margin:15px 0; background:#fafafa; }
+  input, textarea { width:100%; padding:8px; margin:8px 0; border:1px solid #ccc; border-radius:5px; }
+  button { background:#333; color:#fff; border:none; padding:8px 12px; border-radius:5px; cursor:pointer; }
+  button:hover { background:#555; }
+  .verified { color:#0078ff; font-weight:bold; }
+  .like { color:#e74c3c; cursor:pointer; display:inline-block; margin-right:10px; }
+  .modal { display:none; position:fixed; top:10%; left:50%; transform:translateX(-50%); width:90%; max-width:500px; background:#fff; z-index:1000; }
+  .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#00000088; z-index:900; }
+</style>
 </head>
 <body>
-  <h1>神話SNS</h1>
+<h1>神話作成</h1>
 
-  <!-- ログイン・新規登録フォーム -->
-  <div id="authSection">
-    <h2>ログイン / 登録</h2>
-    <input type="email" id="email" placeholder="メールアドレス">
-    <input type="password" id="password" placeholder="パスワード">
-    <button id="loginBtn">ログイン</button>
-    <button id="registerBtn">新規登録</button>
-  </div>
+<!-- ログイン/初期ID -->
+<div id="authSection">
+  <h2>ログイン / 初期ID生成</h2>
+  <div id="idDisplay"></div>
+  <input type="text" id="userIdInput" placeholder="ID">
+  <input type="password" id="passwordInput" placeholder="パスワード">
+  <button id="setPassBtn">パスワード設定 / ログイン</button>
+</div>
 
-  <!-- 投稿フォーム（ログイン後のみ表示） -->
-  <div id="mainSection" style="display:none;">
-    <p id="userInfo"></p>
-    <form id="postForm">
-      <input type="text" id="title" placeholder="タイトル" required>
-      <textarea id="content" placeholder="神話の内容" required></textarea>
-      <input type="text" id="tags" placeholder="タグ（カンマ区切り）">
-      <button type="submit">投稿</button>
-    </form>
+<!-- 投稿 -->
+<div id="mainSection" style="display:none;">
+  <p id="userInfo"></p>
+  <form id="postForm">
+    <input type="text" id="title" placeholder="タイトル" required>
+    <textarea id="content" placeholder="神話の内容" required></textarea>
+    <input type="text" id="tags" placeholder="タグ（カンマ区切り）">
+    <button type="submit">投稿</button>
+  </form>
 
-    <h2>投稿一覧</h2>
-    <button id="sortNew">🕓 新着順</button>
-    <button id="sortLike">❤️ いいね順</button>
-    <div id="postList"></div>
-  </div>
+  <h2>投稿一覧</h2>
+  <button id="sortNew">🕓 新着順</button>
+  <button id="sortLike">❤️ いいね順</button>
+  <div id="postList"></div>
+</div>
 
-  <!-- チャット -->
-  <div id="chatSection" class="chat-box">
-    <h3>フレンドチャット</h3>
-    <div id="chatMessages" style="height:200px;overflow:auto;background:#fff;border:1px solid #ccc;padding:10px;"></div>
-    <input type="text" id="chatInput" placeholder="メッセージを入力...">
-    <button id="sendChat">送信</button>
-  </div>
+<!-- 投稿詳細モーダル -->
+<div class="modal-overlay" id="modalOverlay"></div>
+<div class="modal" id="postModal">
+  <h3 id="modalTitle"></h3>
+  <p id="modalContent"></p>
+  <p id="modalAuthor"></p>
+  <p id="modalTags"></p>
+  <p class="like" id="modalLike"></p>
+  <button id="modalEditBtn" style="display:none;">編集</button>
+  <button onclick="closeModal()">閉じる</button>
+</div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { 
-      getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy, where, onSnapshot 
-    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-    import { 
-      getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut 
-    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-    // 🔧 あなたのFirebase設定を貼ってください
-    const firebaseConfig = {
+const firebaseConfig = {
   apiKey: "AIzaSyD18XhUujCSo_ezYyf_rV8crnjBz7Pv1jY",
   authDomain: "sinwasakusei.firebaseapp.com",
   projectId: "sinwasakusei",
@@ -84,120 +71,113 @@
   measurementId: "G-CRQ4R3MTNX"
 };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-    const authSection = document.getElementById("authSection");
-    const mainSection = document.getElementById("mainSection");
-    const postList = document.getElementById("postList");
-    const userInfo = document.getElementById("userInfo");
+let currentUser = null;
+let sortByLikes = false;
 
-    let currentUser = null;
-    let sortByLikes = false;
+// ===== 自動ID生成 =====
+function generateId() {
+  return 'U' + Math.random().toString(36).substr(2, 6).toUpperCase();
+}
 
-    // ===== ユーザー認証 =====
-    document.getElementById("registerBtn").onclick = async () => {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      await createUserWithEmailAndPassword(auth, email, password);
-      alert("登録が完了しました！");
-    };
+const storedId = localStorage.getItem("userId") || generateId();
+localStorage.setItem("userId", storedId);
+document.getElementById("idDisplay").innerText = `あなたのID: ${storedId}`;
+document.getElementById("userIdInput").value = storedId;
 
-    document.getElementById("loginBtn").onclick = async () => {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      await signInWithEmailAndPassword(auth, email, password);
-    };
+// ===== ログイン / パスワード設定 =====
+document.getElementById("setPassBtn").onclick = async () => {
+  const id = document.getElementById("userIdInput").value;
+  const pass = document.getElementById("passwordInput").value;
+  if (!id || !pass) return alert("IDとパスワードを入力してください");
 
-    onAuthStateChanged(auth, user => {
-      if (user) {
-        currentUser = user;
-        authSection.style.display = "none";
-        mainSection.style.display = "block";
-        userInfo.innerHTML = `ログイン中: ${user.email} <button onclick="logout()">ログアウト</button>`;
-        loadPosts();
-      } else {
-        currentUser = null;
-        authSection.style.display = "block";
-        mainSection.style.display = "none";
-      }
-    });
+  const usersRef = collection(db, "users");
+  const snapshot = await getDocs(usersRef);
+  let userDoc = null;
 
-    window.logout = () => signOut(auth);
+  snapshot.forEach(d => {
+    if (d.id === id) userDoc = d;
+  });
 
-    // ===== 投稿機能 =====
-    document.getElementById("postForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const title = document.getElementById("title").value;
-      const content = document.getElementById("content").value;
-      const tags = document.getElementById("tags").value.split(",").map(t => t.trim());
-      await addDoc(collection(db, "myths"), {
-        title, content, tags,
-        author: currentUser.email,
-        uid: currentUser.uid,
-        verified: false,
-        likes: [],
-        createdAt: new Date()
-      });
-      e.target.reset();
-      loadPosts();
-    });
+  if (!userDoc) {
+    // 新規作成
+    await addDoc(usersRef, { id, password: pass });
+    currentUser = { id, password: pass };
+    alert(`ID ${id} で登録されました`);
+  } else {
+    if (userDoc.data().password !== pass) return alert("パスワードが違います");
+    currentUser = { id, password: pass };
+    alert(`ID ${id} でログイン成功`);
+  }
+  document.getElementById("authSection").style.display = "none";
+  document.getElementById("mainSection").style.display = "block";
+  document.getElementById("userInfo").innerText = `ログインID: ${currentUser.id}`;
+  loadPosts();
+};
 
-    // ===== 投稿一覧表示 =====
-    async function loadPosts() {
-      postList.innerHTML = "";
-      const q = query(
-        collection(db, "myths"),
-        orderBy(sortByLikes ? "likes" : "createdAt", sortByLikes ? "desc" : "desc")
-      );
-      const snapshot = await getDocs(q);
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        const div = document.createElement("div");
-        div.classList.add("post");
-        const liked = data.likes.includes(currentUser.uid);
-        div.innerHTML = `
-          <h3>${data.title} ${data.verified ? '<span class="verified">✔認定</span>' : ''}</h3>
-          <p>${data.content}</p>
-          <p><b>投稿者:</b> ${data.author}</p>
-          <p>タグ: ${data.tags.join(", ")}</p>
-          <p class="like" onclick="toggleLike('${docSnap.id}', ${liked})">❤️ ${data.likes.length}</p>
-          ${data.uid === currentUser.uid ? `<button onclick="editPost('${docSnap.id}')">編集</button>` : ''}
-        `;
-        postList.appendChild(div);
-      });
-    }
+// ===== 投稿 =====
+document.getElementById("postForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const title = document.getElementById("title").value;
+  const content = document.getElementById("content").value;
+  const tags = document.getElementById("tags").value.split(",").map(t => t.trim());
+  await addDoc(collection(db, "myths"), {
+    title, content, tags,
+    authorId: currentUser.id,
+    verified: false,
+    likes: [],
+    createdAt: new Date()
+  });
+  e.target.reset();
+  loadPosts();
+});
 
-    document.getElementById("sortNew").onclick = () => { sortByLikes = false; loadPosts(); };
-    document.getElementById("sortLike").onclick = () => { sortByLikes = true; loadPosts(); };
+// ===== 投稿一覧 =====
+async function loadPosts() {
+  postList.innerHTML = "";
+  const q = query(collection(db, "myths"), orderBy(sortByLikes ? "likes" : "createdAt", "desc"));
+  const snapshot = await getDocs(q);
+  snapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    const div = document.createElement("div");
+    div.classList.add("post");
+    div.innerHTML = `<h3 class="postTitle">${data.title}</h3>
+                     <p>投稿者: ${data.authorId}</p>`;
+    div.onclick = () => openModal(docSnap.id, data);
+    postList.appendChild(div);
+  });
+}
 
-    // ===== いいね機能 =====
-    window.toggleLike = async (postId, alreadyLiked) => {
-      const postRef = doc(db, "myths", postId);
-      const postSnap = await getDocs(collection(db, "myths"));
-      const target = postSnap.docs.find(d => d.id === postId);
-      if (!target) return;
-      const data = target.data();
-      const likes = data.likes || [];
-      if (likes.includes(currentUser.uid)) {
-        await updateDoc(postRef, { likes: likes.filter(uid => uid !== currentUser.uid) });
-      } else {
-        likes.push(currentUser.uid);
-        await updateDoc(postRef, { likes });
-      }
-      loadPosts();
-    };
+document.getElementById("sortNew").onclick = () => { sortByLikes=false; loadPosts(); };
+document.getElementById("sortLike").onclick = () => { sortByLikes=true; loadPosts(); };
 
-    // ===== 編集機能 =====
-    window.editPost = async (id) => {
-      const newContent = prompt("新しい本文を入力してください：");
+// ===== 投稿詳細モーダル =====
+const modal = document.getElementById("postModal");
+const overlay = document.getElementById("modalOverlay");
+window.openModal = (id, data) => {
+  modal.style.display = "block";
+  overlay.style.display = "block";
+  document.getElementById("modalTitle").innerText = data.title;
+  document.getElementById("modalContent").innerText = data.content;
+  document.getElementById("modalAuthor").innerText = "投稿者: "+data.authorId;
+  document.getElementById("modalTags").innerText = "タグ: "+data.tags.join(", ");
+  document.getElementById("modalLike").innerText = `❤️ ${data.likes.length}`;
+  const editBtn = document.getElementById("modalEditBtn");
+  if (data.authorId === currentUser.id) {
+    editBtn.style.display = "inline-block";
+    editBtn.onclick = async () => {
+      const newContent = prompt("新しい本文を入力してください:", data.content);
       if (!newContent) return;
       const postRef = doc(db, "myths", id);
       await updateDoc(postRef, { content: newContent });
-      alert("更新しました！");
       loadPosts();
+      closeModal();
     };
-  </script>
+  } else editBtn.style.display = "none";
+};
+window.closeModal = () => { modal.style.display="none"; overlay.style.display="none"; };
+</script>
 </body>
 </html>
