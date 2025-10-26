@@ -21,7 +21,7 @@ button:hover { background:#555; }
 <h1>神話SNS 完全版</h1>
 
 <div id="authSection">
-  <h2 id="authTitle">初めての方は新規登録 / 既存ユーザーはログイン</h2>
+  <h2 id="authTitle">初めての方は自動IDで新規登録 / 既存ユーザーはログイン</h2>
   <div id="idDisplay"></div>
   <input type="text" id="userIdInput" placeholder="ID">
   <input type="password" id="passwordInput" placeholder="パスワード">
@@ -57,7 +57,7 @@ button:hover { background:#555; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDoc, setDoc, doc, updateDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD18XhUujCSo_ezYyf_rV8crnjBz7Pv1jY",
@@ -75,48 +75,125 @@ const db = getFirestore(app);
 let currentUser = null;
 let sortByLikes = false;
 
-// 自動ID生成
+// ===== 自動ID生成 =====
 function generateId() {
   return 'U' + Math.random().toString(36).substr(2, 6).toUpperCase();
 }
 
 const storedId = localStorage.getItem("userId") || generateId();
 localStorage.setItem("userId", storedId);
-document.getElementById("idDisplay").innerText = `あなたのID: ${storedId}`;
+document.getElementById("idDisplay").innerText = `あなたの自動ID: ${storedId}`;
 document.getElementById("userIdInput").value = storedId;
 
-// 登録 / ログイン
+// ===== 登録 / ログイン =====
 document.getElementById("authBtn").onclick = async () => {
   const id = document.getElementById("userIdInput").value;
   const pass = document.getElementById("passwordInput").value;
   if(!id || !pass) return alert("IDとパスワードを入力してください");
 
-  const usersRef = collection(db, "users");
-  const snapshot = await getDocs(usersRef);
-  let userDoc = null;
-  snapshot.forEach(d => { if(d.id===id) userDoc=d; });
+  const userRef = doc(db,"users",id);
+  const userSnap = await getDoc(userRef);
 
-  if(!userDoc) {
+  if(!userSnap.exists()) {
     // 新規登録
-    await addDoc(usersRef, { id, password: pass, isAdmin:false });
-    currentUser = { id, password: pass, isAdmin:false };
-    alert(`ID ${id} で登録されました`);
+    await setDoc(userRef,{ password:pass, isAdmin:false });
+    currentUser={id, password:pass, isAdmin:false};
+    alert(`ID ${id} で新規登録されました`);
   } else {
-    const data = userDoc.data();
-    if(data.password !== pass) return alert("パスワードが違います");
-    currentUser = { id, password: pass, isAdmin:data.isAdmin || false };
+    const data = userSnap.data();
+    if(data.password!==pass) return alert("パスワードが違います");
+    currentUser={id, password:pass, isAdmin:data.isAdmin||false};
     alert(`ID ${id} でログイン成功`);
   }
 
   document.getElementById("authSection").style.display="none";
   document.getElementById("mainSection").style.display="block";
-  document.getElementById("userInfo").innerText = `ログインID: ${currentUser.id} ${currentUser.isAdmin?'(管理者)': ''}`;
+  document.getElementById("userInfo").innerText=`ログインID: ${currentUser.id} ${currentUser.isAdmin?'(管理者)': ''}`;
   loadPosts();
 };
 
-// 投稿
-document.getElementById("postForm").addEventListener("submit", async e => {
+// ===== 投稿 =====
+document.getElementById("postForm").addEventListener("submit", async e=>{
   e.preventDefault();
   const title=document.getElementById("title").value;
   const content=document.getElementById("content").value;
-  const
+  const tags=document.getElementById("tags").value.split(",").map(t=>t.trim());
+  const verified=document.getElementById("adminVerify").checked && currentUser.isAdmin;
+
+  await addDoc(collection(db,"myths"),{
+    title, content, tags,
+    authorId:currentUser.id,
+    verified,
+    likes:[],
+    createdAt:new Date()
+  });
+  e.target.reset();
+  loadPosts();
+});
+
+// ===== 投稿一覧 =====
+async function loadPosts(){
+  const postList=document.getElementById("postList");
+  postList.innerHTML="";
+  const q=query(collection(db,"myths"),orderBy(sortByLikes?"likes":"createdAt","desc"));
+  const snapshot=await getDocs(q);
+  snapshot.forEach(docSnap=>{
+    const data=docSnap.data();
+    const div=document.createElement("div");
+    div.classList.add("post");
+    div.innerHTML=`<h3 class="postTitle">${data.title} ${data.verified?'<span class="verified">✔認定</span>':''}</h3>
+                   <p>投稿者: ${data.authorId}</p>
+                   <p class="like" onclick="toggleLike('${docSnap.id}')">❤️ ${data.likes.length}</p>`;
+    div.onclick=()=>openModal(docSnap.id,data);
+    postList.appendChild(div);
+  });
+}
+
+// 並べ替え
+document.getElementById("sortNew").onclick=()=>{ sortByLikes=false; loadPosts(); };
+document.getElementById("sortLike").onclick=()=>{ sortByLikes=true; loadPosts(); };
+
+// ===== いいね機能 =====
+window.toggleLike=async(postId)=>{
+  const postRef=doc(db,"myths",postId);
+  const postSnap=await getDoc(postRef);
+  if(!postSnap.exists()) return;
+  const data=postSnap.data();
+  const likes=data.likes||[];
+  if(likes.includes(currentUser.id)) likes.splice(likes.indexOf(currentUser.id),1);
+  else likes.push(currentUser.id);
+  await updateDoc(postRef,{likes});
+  loadPosts();
+};
+
+// ===== 投稿詳細モーダル =====
+const modal=document.getElementById("postModal");
+const overlay=document.getElementById("modalOverlay");
+window.openModal=(id,data)=>{
+  modal.style.display="block";
+  overlay.style.display="block";
+  document.getElementById("modalTitle").innerText=data.title;
+  document.getElementById("modalContent").innerText=data.content;
+  document.getElementById("modalAuthor").innerText="投稿者: "+data.authorId;
+  document.getElementById("modalTags").innerText="タグ: "+data.tags.join(", ");
+  const likeElem=document.getElementById("modalLike");
+  const liked=data.likes.includes(currentUser.id);
+  likeElem.innerText=`❤️ ${data.likes.length}`;
+  likeElem.onclick=()=>toggleLike(id);
+
+  const editBtn=document.getElementById("modalEditBtn");
+  if(data.authorId===currentUser.id){
+    editBtn.style.display="inline-block";
+    editBtn.onclick=async()=>{
+      const newContent=prompt("新しい本文を入力してください:",data.content);
+      if(!newContent) return;
+      await updateDoc(doc(db,"myths",id),{content:newContent});
+      loadPosts();
+      closeModal();
+    };
+  } else editBtn.style.display="none";
+};
+window.closeModal=()=>{ modal.style.display="none"; overlay.style.display="none"; };
+</script>
+</body>
+</html>
