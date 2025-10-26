@@ -89,6 +89,12 @@
         </div>
       </div>
       <div id="formMsg" class="muted" style="margin-top:8px; font-size:13px;"></div>
+      <button onclick="savePost(
+  document.getElementById('title').value,
+  document.getElementById('content').value,
+  document.getElementById('tags').value
+)">投稿する</button>
+
     </form>
 
     <!-- 検索 / タグフィルタ -->
@@ -110,6 +116,63 @@
   </div>
 
 <script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
+
+<script>
+  
+  // 🔹ここにあなたのfirebaseConfigを貼る
+firebaseConfig = {
+  apiKey: "AIzaSyD18XhUujCSo_ezYyf_rV8crnjBz7Pv1jY",
+  authDomain: "sinwasakusei.firebaseapp.com",
+  projectId: "sinwasakusei",
+  storageBucket: "sinwasakusei.firebasestorage.app",
+  messagingSenderId: "135038486513",
+  appId: "1:135038486513:web:1791f88ca12571560ba650",
+  measurementId: "G-CRQ4R3MTNX"
+};
+
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  // 投稿を保存する関数
+  async function savePost(title, content, tags) {
+    await db.collection("posts").add({
+      title: title,
+      content: content,
+      tags: tags,
+      time: new Date()
+    });
+  }
+
+  // 投稿を読み取って一覧に表示
+  async function loadPosts() {
+    const snapshot = await db.collection("posts").orderBy("time", "desc").get();
+    const list = document.getElementById("postList");
+    list.innerHTML = "";
+    snapshot.forEach(doc => {
+      const p = doc.data();
+      const div = document.createElement("div");
+      div.className = "post";
+      div.innerHTML = `
+        <h3>${p.title}</h3>
+        <p>${p.content.slice(0, 100)}...</p>
+        <button onclick="showPost('${doc.id}')">詳しく見る</button>
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  // 投稿を詳しく表示
+  async function showPost(id) {
+    const docSnap = await db.collection("posts").doc(id).get();
+    const p = docSnap.data();
+    alert(`【${p.title}】\n\n${p.content}`);
+  }
+
+  loadPosts(); // ページ読み込み時に一覧表示
+</script>
 /*
  Simple client-only posting system (LocalStorage)
  - posts are stored as array under localStorage key 'myth_posts'
