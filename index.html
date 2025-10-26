@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>神話投稿サイト（試作）</title>
+<style>
+  :root{
+    --bg:#ffffff;
+    --text:#0b0b0b;
+    --muted:#777;
+    --accent:#111;
+    --card:#fafafa;
+    --accent-2:#f2f2f2;
+    --danger:#d9534f;
+    --ok:#28a745;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  html,body{background:var(--bg); color:var(--text); margin:0; padding:0; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:900px; margin:0 auto; padding:16px; box-sizing:border-box;}
+  header{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px;}
+  h1{font-size:18px; margin:0;}
+  .sub{font-size:12px; color:var(--muted);}
+  .controls{display:flex; gap:8px; align-items:center;}
+  button, input[type="button"], input[type="submit"]{background:transparent; border:1px solid var(--accent); padding:8px 10px; border-radius:8px; font-size:14px;}
+  button.primary{background:var(--accent); color:white; border-color:transparent;}
+  form.card{background:var(--card); padding:12px; border-radius:12px; box-shadow: 0 1px 0 rgba(0,0,0,0.04);}
+  label{display:block; font-size:13px; margin-bottom:6px; color:var(--muted);}
+  textarea, input[type="text"], input[type="file"]{width:100%; box-sizing:border-box; padding:10px; border-radius:8px; border:1px solid var(--accent-2); background:white; font-size:14px; margin-bottom:10px;}
+  textarea{min-height:120px; resize:vertical;}
+  .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  .small{font-size:13px; color:var(--muted);}
+  .posts{margin-top:14px; display:flex; flex-direction:column; gap:12px;}
+  .post{background:white; border:1px solid var(--accent-2); padding:12px; border-radius:10px;}
+  .post-header{display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:8px;}
+  .title{font-weight:600; font-size:15px; margin:0;}
+  .meta{font-size:12px; color:var(--muted);}
+  .badge{display:inline-flex; align-items:center; gap:6px; background:#eefaf1; color:var(--ok); padding:4px 8px; border-radius:999px; font-size:12px; border:1px solid rgba(40,167,69,0.12);}
+  .admin-badge{background:#fff8e6; color:#d97706; border:1px solid rgba(217,151,37,0.12);}
+  img.preview{max-width:100%; border-radius:8px; margin-top:8px;}
+  .tags{margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;}
+  .tag{font-size:12px; color:var(--accent); border:1px dashed var(--accent-2); padding:4px 8px; border-radius:999px; background:transparent;}
+  .actions{display:flex; gap:8px; align-items:center;}
+  .searchbar{display:flex; gap:8px; margin:10px 0;}
+  input[type="search"]{flex:1; padding:10px; border-radius:10px; border:1px solid var(--accent-2);}
+  .muted{color:var(--muted); font-size:13px;}
+  footer{margin-top:18px; font-size:12px; color:var(--muted);}
+  /* small screens */
+  @media (max-width:480px){
+    h1{font-size:16px;}
+    button{padding:8px 10px; font-size:13px;}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>空想神話の広場</h1>
+        <div class="sub">オリジナルの神話だけを投稿するコミュニティ（試作）</div>
+      </div>
+      <div class="controls">
+        <button id="btn-admin">Adminログイン</button>
+        <button id="btn-clear" title="ローカル保存を全て消す（テスト用）">データ消去</button>
+      </div>
+    </header>
+
+    <!-- 投稿フォーム -->
+    <form id="postForm" class="card" autocomplete="off">
+      <label class="small">タイトル（任意）</label>
+      <input id="title" type="text" placeholder="短いタイトル（例：風の女神の物語）" maxlength="80">
+
+      <label class="small">本文（必須：オリジナルの神話）</label>
+      <textarea id="content" placeholder="ここに神話の本文を書いてください。文章だけでも、画像だけでも、両方でも可。"></textarea>
+
+      <label class="small">画像（任意）</label>
+      <input id="image" type="file" accept="image/*">
+
+      <label class="small">タグ（必須） <span class="muted">カンマで区切って複数指定可（例: 海,創造神）</span></label>
+      <input id="tags" type="text" placeholder="例：海,創造神">
+
+      <div class="row" style="margin-top:6px; justify-content:space-between; align-items:center;">
+        <label style="display:flex; gap:8px; align-items:center;">
+          <input id="confirm-original" type="checkbox" required>
+          <span class="small">私の投稿は**オリジナルの神話**であり著作権等を侵害していません（必須）</span>
+        </label>
+        <div style="display:flex; gap:8px;">
+          <button type="submit" class="primary">投稿する</button>
+        </div>
+      </div>
+      <div id="formMsg" class="muted" style="margin-top:8px; font-size:13px;"></div>
+    </form>
+
+    <!-- 検索 / タグフィルタ -->
+    <div class="searchbar">
+      <input id="q" type="search" placeholder="フリーワード検索（本文・タイトルから）">
+      <input id="tagFilter" type="text" placeholder="タグで絞る（カンマ区切り可）">
+      <button id="btnFilter">絞り込む</button>
+      <button id="btnReset">リセット</button>
+    </div>
+    <div class="muted" id="resultInfo">投稿数: 0</div>
+
+    <!-- 投稿一覧 -->
+    <div class="posts" id="posts"></div>
+
+    <footer>
+      <div>注意：この試作は**クライアント（ブラウザのLocalStorage）上で動く**簡易版です。実際に公開・運営する場合はサーバー側の認証・データベース・投稿規約・モデレーション機能を導入してください。</div>
+      <div style="margin-top:6px;">管理者パスワード（試作用）: <code>admin</code></div>
+    </footer>
+  </div>
+
+<script>
+/*
+ Simple client-only posting system (LocalStorage)
+ - posts are stored as array under localStorage key 'myth_posts'
+ - structure: {id, title, content, imageDataUrl|null, tags:[...], created, approved:boolean, author:'user'|'admin'}
+ - admin login is client-side (password = 'admin') for demo only
+*/
+
+const LS_KEY = 'myth_posts_v1';
+let posts = [];
+let isAdmin = false;
+const adminMark = '認定';
+
+// DOM
+const postsEl = document.getElementById('posts');
+const postForm = document.getElementById('postForm');
+const titleEl = document.getElementById('title');
+const contentEl = document.getElementById('content');
+const imageEl = document.getElementById('image');
+const tagsEl = document.getElementById('tags');
+const confirmEl = document.getElementById('confirm-original');
+const formMsg = document.getElementById('formMsg');
+const qEl = document.getElementById('q');
+const tagFilterEl = document.getElementById('tagFilter');
+const resultInfo = document.getElementById('resultInfo');
+const btnAdmin = document.getElementById('btn-admin');
+const btnClear = document.getElementById('btn-clear');
+const btnFilter = document.getElementById('btnFilter');
+const btnReset = document.getElementById('btnReset');
+
+function loadPosts(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    posts = raw ? JSON.parse(raw) : [];
+  }catch(e){
+    posts = [];
+  }
+}
+function savePosts(){
+  localStorage.setItem(LS_KEY, JSON.stringify(posts));
+}
+function renderPosts(filterQ='', filterTags=[]){
+  postsEl.innerHTML = '';
+  const list = posts.slice().sort((a,b)=> new Date(b.created) - new Date(a.created));
+  let shown = 0;
+  for(const p of list){
+    // filter by q
+    const qLower = filterQ.trim().toLowerCase();
+    if(qLower){
+      const hay = ((p.title||'') + ' ' + (p.content||'')).toLowerCase();
+      if(!hay.includes(qLower)) continue;
+    }
+    // filter by tags (all must be present)
+    if(filterTags.length){
+      const pTags = (p.tags||[]).map(s=>s.toLowerCase());
+      let ok = true;
+      for(const ft of filterTags){
+        if(!pTags.includes(ft)) { ok = false; break; }
+      }
+      if(!ok) continue;
+    }
+    shown++;
+    const el = document.createElement('article');
+    el.className = 'post';
+    el.innerHTML = `
+      <div class="post-header">
+        <div>
+          <div class="title">${escapeHtml(p.title||'（無題）')}</div>
+          <div class="meta">${new Date(p.created).toLocaleString()}</div>
+        </div>
+        <div style="text-align:right">
+          ${p.approved ? `<span class="badge">${adminMark}</span>` : ''}
+          ${p.author === 'admin' ? `<span class="badge admin-badge" style="margin-left:6px">管理者投稿</span>` : ''}
+        </div>
+      </div>
+      <div class="post-body">
+        <div class="content">${linkify(escapeHtml(p.content||''))}</div>
+        ${p.imageDataUrl ? `<img class="preview" src="${p.imageDataUrl}" alt="投稿画像">` : ''}
+        <div class="tags">${(p.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
+        <div style="margin-top:8px;" class="actions">
+          ${isAdmin ? (p.approved ? `<button data-id="${p.id}" class="btn-unapprove">承認取り消し</button>` : `<button data-id="${p.id}" class="btn-approve">承認する</button>`) : ''}
+          ${isAdmin ? `<button data-id="${p.id}" class="btn-delete" style="background:transparent;border:1px solid var(--danger);color:var(--danger)">削除</button>` : ''}
+        </div>
+      </div>
+    `;
+    postsEl.appendChild(el);
+  }
+  resultInfo.textContent = `投稿数: ${posts.length}（表示: ${shown}） ${isAdmin ? '(管理者モード)' : ''}`;
+  attachActionHandlers();
+}
+
+function attachActionHandlers(){
+  // approve buttons
+  const approves = document.querySelectorAll('.btn-approve');
+  approves.forEach(b=> b.addEventListener('click', e=>{
+    const id = b.getAttribute('data-id');
+    const p = posts.find(x=>x.id===id);
+    if(p){ p.approved = true; savePosts(); renderPosts(qEl.value, parseTagFilter(tagFilterEl.value)); }
+  }));
+  const unapproves = document.querySelectorAll('.btn-unapprove');
+  unapproves.forEach(b=> b.addEventListener('click', e=>{
+    const id = b.getAttribute('data-id');
+    const p = posts.find(x=>x.id===id);
+    if(p){ p.approved = false; savePosts(); renderPosts(qEl.value, parseTagFilter(tagFilterEl.value)); }
+  }));
+  const deletes = document.querySelectorAll('.btn-delete');
+  deletes.forEach(b=> b.addEventListener('click', e=>{
+    const id = b.getAttribute('data-id');
+    if(!confirm('本当に削除しますか？（この操作は元に戻せません）')) return;
+    posts = posts.filter(x=>x.id!==id);
+    savePosts();
+    renderPosts(qEl.value, parseTagFilter(tagFilterEl.value));
+  }));
+}
+
+// helpers
+function escapeHtml(s){
+  if(!s) return '';
+  return s.replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function linkify(text){
+  // auto-link URLs
+  return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g,'<br>');
+}
+function parseTags(s){
+  return s.split(',').map(t=>t.trim()).filter(t=>t).slice(0,10);
+}
+function parseTagFilter(s){
+  return s.split(',').map(t=>t.trim().toLowerCase()).filter(t=>t);
+}
+
+function uid(){
+  return 'p_' + Math.random().toString(36).slice(2,10);
+}
+
+// form submit
+postForm.addEventListener('submit', async (ev)=>{
+  ev.preventDefault();
+  formMsg.textContent = '';
+  if(!confirmEl.checked){ formMsg.textContent = '「オリジナル同意」チェックが必要です。'; return; }
+  const content = contentEl.value.trim();
+  const title = titleEl.value.trim();
+  const tags = parseTags(tagsEl.value);
+  if(!content && imageEl.files.length===0){ formMsg.textContent = '文章か画像のどちらかを添えてください。'; return; }
+  if(tags.length===0){ formMsg.textContent = 'タグを1つ以上入力してください。'; return; }
+  // convert image to dataURL if present
+  let dataUrl = null;
+  if(imageEl.files.length){
+    try{
+      dataUrl = await readFileAsDataURL(imageEl.files[0]);
+    }catch(e){
+      console.error(e);
+      formMsg.textContent = '画像の読み込みに失敗しました。';
+      return;
+    }
+  }
+  const post = {
+    id: uid(),
+    title: title,
+    content: content,
+    imageDataUrl: dataUrl,
+    tags: tags,
+    created: new Date().toISOString(),
+    approved: isAdmin, // if admin posts while logged in -> auto-approved
+    author: isAdmin ? 'admin' : 'user'
+  };
+  posts.push(post);
+  savePosts();
+  // reset form
+  postForm.reset();
+  formMsg.textContent = '投稿を保存しました（ローカルに保存・運営側の承認が必要な場合があります）。';
+  renderPosts(qEl.value, parseTagFilter(tagFilterEl.value));
+});
+
+function readFileAsDataURL(file){
+  return new Promise((res, rej)=>{
+    const r = new FileReader();
+    r.onload = ()=> res(r.result);
+    r.onerror = ()=> rej(new Error('read error'));
+    r.readAsDataURL(file);
+  });
+}
+
+// admin login
+btnAdmin.addEventListener('click', ()=>{
+  if(isAdmin){
+    if(confirm('管理者ログアウトしますか？')) {
+      isAdmin = false;
+      btnAdmin.textContent = 'Adminログイン';
+      renderPosts(qEl.value, parseTagFilter(tagFilterEl.value));
+    }
+    return;
+  }
+  const pass = prompt('管理者パスワードを入力してください（試作: admin）');
+  if(pass === 'admin'){
+    isAdmin = true;
+    btnAdmin.textContent = 'Adminログアウト';
+    alert('管理者モードに入りました（クライアント認証のみ・本番ではサーバー認証が必要）');
+    renderPosts(qEl.value, parseTagFilter(tagFilterEl.value));
+  } else {
+    alert('パスワードが違います');
+  }
+});
+
+// clear local data (for testing)
+btnClear.addEventListener('click', ()=>{
+  if(confirm('ローカルに保存された全データを消去しますか？（テスト用）')){
+    localStorage.removeItem(LS_KEY);
+    loadPosts();
+    renderPosts();
+  }
+});
+
+// filter buttons
+btnFilter.addEventListener('click', ()=> {
+  const q = qEl.value || '';
+  const ft = parseTagFilter(tagFilterEl.value);
+  renderPosts(q, ft);
+});
+btnReset.addEventListener('click', ()=> {
+  qEl.value = '';
+  tagFilterEl.value = '';
+  renderPosts();
+});
+
+// initial load
+loadPosts();
+renderPosts();
+
+// small utility: seed sample content if no posts (optional)
+if(posts.length===0){
+  const seed = {
+    id: uid(),
+    title: '風の女神の初唱',
+    content: 'かつて風の女神は海に唄を落とした。世界が生まれるその前の物語…',
+    imageDataUrl: null,
+    tags: ['風','創造神'],
+    created: new Date().toISOString(),
+    approved: true,
+    author: 'admin'
+  };
+  posts.push(seed);
+  savePosts();
+  renderPosts();
+}
+</script>
+</body>
+</html>
