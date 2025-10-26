@@ -1,273 +1,365 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>神話投稿サイト（安定版）</title>
-  <style>
-    :root{
-      --bg:#ffffff; --text:#111; --muted:#666; --card:#fbfbfb; --accent:#111;
-    }
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family: -apple-system, "Helvetica Neue", "Noto Sans JP", Roboto, Arial;}
-    .wrap{max-width:800px;margin:0 auto;padding:16px;box-sizing:border-box;}
-    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
-    h1{font-size:20px;margin:0;}
-    .sub{font-size:13px;color:var(--muted);}
-    form.card{background:var(--card);padding:12px;border-radius:10px;border:1px solid #eee;}
-    input[type="text"], textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #e6e6e6;margin-top:8px;box-sizing:border-box;font-size:15px;}
-    textarea{min-height:100px;resize:vertical;}
-    button{background:var(--accent);color:white;border:none;padding:10px 12px;border-radius:8px;font-size:15px;cursor:pointer;}
-    button[disabled]{opacity:.6;cursor:default;}
-    .posts{margin-top:18px;display:flex;flex-direction:column;gap:12px;}
-    .post{background:white;padding:12px;border-radius:10px;border:1px solid #f0f0f0;cursor:pointer;}
-    .post h3{margin:0 0 6px 0;font-size:16px;}
-    .meta{font-size:12px;color:var(--muted);margin-bottom:6px;}
-    .tags{margin-top:8px;font-size:13px;color:var(--muted);}
-    .verified{display:inline-block;background:#eef6ff;color:#0366d6;border-radius:999px;padding:4px 8px;font-size:12px;margin-left:8px}
-    /* modal */
-    .modal-back{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:60;padding:16px;}
-    .modal{background:white;border-radius:12px;max-width:720px;width:100%;max-height:90vh;overflow:auto;padding:16px;box-sizing:border-box;}
-    .modal header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-    .close-btn{background:transparent;border:1px solid #ddd;padding:6px 8px;border-radius:8px;cursor:pointer;}
-    .muted{color:var(--muted);font-size:13px;}
-    @media (max-width:520px){
-      h1{font-size:18px;}
-      button{font-size:14px;padding:9px 10px;}
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>神話投稿サイト（Firebase版）</title>
+<style>
+  :root{--bg:#fff;--text:#111;--muted:#666;--card:#fbfbfb;--accent:#0b67ff;--danger:#d9534f;}
+  body{font-family:system-ui,-apple-system,"Noto Sans JP",Roboto,Arial;margin:0;background:var(--bg);color:var(--text);padding:16px;box-sizing:border-box;}
+  .wrap{max-width:900px;margin:0 auto;}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;}
+  h1{margin:0;font-size:20px;}
+  .sub{font-size:13px;color:var(--muted);}
+  form.card{background:var(--card);padding:12px;border-radius:12px;border:1px solid #eee;}
+  input[type="text"], textarea, input[type="file"]{width:100%;padding:10px;border-radius:8px;border:1px solid #e6e6e6;margin-bottom:8px;font-size:15px;box-sizing:border-box;}
+  textarea{min-height:110px;resize:vertical;}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  button{padding:9px 12px;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:14px;cursor:pointer;}
+  button.primary{background:var(--accent);color:#fff;border-color:transparent;}
+  .posts{margin-top:16px;display:grid;grid-template-columns:1fr;gap:10px;}
+  .card-post{background:white;border:1px solid #f0f0f0;padding:12px;border-radius:10px;cursor:pointer;}
+  .meta{font-size:13px;color:var(--muted);margin-top:6px;}
+  .tags{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;}
+  .tag{font-size:12px;color:var(--accent);border:1px dashed #eee;padding:4px 8px;border-radius:999px;}
+  .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eefaf1;color:#0a9a4b;font-size:12px;margin-left:8px;}
+  .admin-controls{display:flex;gap:8px;margin-top:8px;}
+  .danger{background:transparent;color:var(--danger);border:1px solid var(--danger);padding:6px 8px;border-radius:8px;}
+  .muted{color:var(--muted);font-size:13px;}
+  footer{margin-top:18px;color:var(--muted);font-size:13px;}
+
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center;z-index:40;padding:20px;}
+  .modal{background:white;border-radius:12px:max-width:760px;width:100%;max-width:760px;max-height:90vh;overflow:auto;padding:16px;}
+  .modal img{max-width:100%;border-radius:8px;margin-top:8px;}
+  @media (max-width:480px){ h1{font-size:18px} .card-post{padding:10px} }
+</style>
 </head>
 <body>
   <div class="wrap">
     <header>
       <div>
-        <h1>神話投稿サイト</h1>
-        <div class="sub">オリジナルの神話のみ（試作） — 投稿をタップすると詳細が見られます</div>
+        <h1>空想神話の広場</h1>
+        <div class="sub">オリジナルの神話を投稿・共有しよう（画像は任意）</div>
       </div>
-      <div class="sub" id="status">ロード中…</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="btn-admin">Adminログイン</button>
+        <button id="btn-clear" title="テスト用：ローカルに残る一時データを消去">リセット(テスト)</button>
+      </div>
     </header>
 
     <form id="postForm" class="card" autocomplete="off">
-      <label class="muted">タイトル（任意）</label>
-      <input id="title" type="text" placeholder="短いタイトル">
-
-      <label class="muted">本文（必須）</label>
-      <textarea id="content" placeholder="神話の本文を入力してください"></textarea>
-
-      <label class="muted">タグ（カンマ区切り）</label>
-      <input id="tags" type="text" placeholder="例：創世,風,女神">
-
-      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
-        <button id="submitBtn" type="submit">投稿する</button>
-        <div class="muted" style="font-size:13px;">投稿は全員に見えます（Firestore保存）</div>
+      <input id="title" type="text" placeholder="タイトル（任意）" maxlength="120">
+      <textarea id="content" placeholder="神話の本文（必須）"></textarea>
+      <input id="image" type="file" accept="image/*">
+      <input id="tags" type="text" placeholder="タグ（カンマ区切り）例：創世,風">
+      <div class="row" style="justify-content:space-between;align-items:center;">
+        <label class="muted" style="font-size:13px;">
+          <input id="confirmOriginal" type="checkbox"> 投稿はオリジナルの神話です（必須）
+        </label>
+        <button type="submit" class="primary">投稿する</button>
       </div>
-      <div id="formMsg" class="muted" style="margin-top:8px;"></div>
+      <div id="formMsg" class="muted" style="margin-top:8px"></div>
     </form>
 
-    <h2 style="margin-top:18px;margin-bottom:8px;">最新の投稿</h2>
-    <div id="postList" class="posts"></div>
+    <div style="margin-top:12px;display:flex;gap:8px;align-items:center;">
+      <input id="q" type="text" placeholder="フリーワード検索（タイトル/本文）" style="flex:1;padding:8px;border-radius:8px;border:1px solid #eee">
+      <input id="tagFilter" type="text" placeholder="タグで絞る（,区切り）" style="width:160px;padding:8px;border-radius:8px;border:1px solid #eee">
+      <button id="btnFilter">絞り込む</button>
+      <button id="btnReset">リセット</button>
+    </div>
+
+    <div class="muted" id="resultInfo" style="margin-top:8px">投稿読み込み中…</div>
+    <div class="posts" id="posts"></div>
+
+    <footer>注意：このサンプルはクライアント側の簡易管理を含みます。本番は認証・セキュリティルールを必ず整備してください。</footer>
   </div>
 
-  <!-- モーダル（投稿詳細） -->
-  <div id="modalBack" class="modal-back" role="dialog" aria-hidden="true">
-    <div class="modal" role="document">
-      <header>
+  <!-- 詳細モーダル -->
+  <div id="modalBg" class="modal-bg" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <strong id="modalTitle"></strong>
         <div>
-          <strong id="modalTitle"></strong>
-          <div id="modalMeta" class="muted" style="margin-top:6px;"></div>
+          <button id="modalClose">閉じる</button>
         </div>
-        <div>
-          <button id="modalClose" class="close-btn">閉じる</button>
-        </div>
-      </header>
-      <div id="modalContent" style="white-space:pre-wrap;line-height:1.6;"></div>
-      <div id="modalTags" class="tags" style="margin-top:12px;"></div>
+      </div>
+      <div id="modalMeta" class="muted" style="margin-top:8px"></div>
+      <div id="modalContent" style="margin-top:10px;white-space:pre-wrap"></div>
+      <img id="modalImage" src="" alt="" style="display:none">
+      <div id="modalTags" class="tags" style="margin-top:10px"></div>
+      <div id="modalAdminArea" style="margin-top:12px"></div>
     </div>
   </div>
 
-  <!-- Firebase & App script -->
+  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import {
-      getFirestore,
-      collection,
-      addDoc,
-      query,
-      orderBy,
-      onSnapshot,
-      serverTimestamp,
-      doc,
-      getDoc
+      getFirestore, collection, addDoc, serverTimestamp,
+      query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, getDoc
     } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
 
-    // ======= ここにあなたの Firebase 設定を貼る =======
-    // Firebase コンソール -> プロジェクト設定 -> アプリのスニペット で取得できます
-    const firebaseConfig = {
-      apiKey: "あなたのAPIキー",
-      authDomain: "あなたのプロジェクトID.firebaseapp.com",
-      projectId: "あなたのプロジェクトID",
-      storageBucket: "あなたのプロジェクトID.appspot.com",
-      messagingSenderId: "数字",
-      appId: "アプリID"
-    };
-    // ==============================================
+    // ====== ← ここをあなたの設定に置き換えてください ↓
+    const  firebaseConfig = {
+  apiKey: "AIzaSyD18XhUujCSo_ezYyf_rV8crnjBz7Pv1jY",
+  authDomain: "sinwasakusei.firebaseapp.com",
+  projectId: "sinwasakusei",
+  storageBucket: "sinwasakusei.firebasestorage.app",
+  messagingSenderId: "135038486513",
+  appId: "1:135038486513:web:1791f88ca12571560ba650",
+  measurementId: "G-CRQ4R3MTNX"
+};
+    // ====== ↑ 書き換え終わり
 
-    // 初期化
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const storage = getStorage(app);
 
     // DOM
     const postForm = document.getElementById('postForm');
     const titleEl = document.getElementById('title');
     const contentEl = document.getElementById('content');
+    const imageEl = document.getElementById('image');
     const tagsEl = document.getElementById('tags');
-    const submitBtn = document.getElementById('submitBtn');
+    const confirmEl = document.getElementById('confirmOriginal');
     const formMsg = document.getElementById('formMsg');
-    const statusEl = document.getElementById('status');
-    const postList = document.getElementById('postList');
+    const postsEl = document.getElementById('posts');
+    const resultInfo = document.getElementById('resultInfo');
+    const qEl = document.getElementById('q');
+    const tagFilterEl = document.getElementById('tagFilter');
+    const btnFilter = document.getElementById('btnFilter');
+    const btnReset = document.getElementById('btnReset');
+    const btnAdmin = document.getElementById('btn-admin');
+    const btnClear = document.getElementById('btn-clear');
 
-    const modalBack = document.getElementById('modalBack');
+    const modalBg = document.getElementById('modalBg');
     const modalTitle = document.getElementById('modalTitle');
     const modalMeta = document.getElementById('modalMeta');
     const modalContent = document.getElementById('modalContent');
+    const modalImage = document.getElementById('modalImage');
     const modalTags = document.getElementById('modalTags');
+    const modalAdminArea = document.getElementById('modalAdminArea');
     const modalClose = document.getElementById('modalClose');
 
-    // エスケープ（XSS対策）
-    function escapeHtml(s){
-      if(s == null) return '';
-      return String(s).replace(/[&<>"'`]/g, c => ({
-        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'
-      }[c]));
-    }
-    // URLをリンク化（表示用）
-    function linkify(text){
-      if(!text) return '';
-      const esc = escapeHtml(text);
-      return esc.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>').replace(/\n/g,'<br>');
-    }
+    let isAdmin = false; // クライアント側簡易管理（実運用ではAuthを使って下さい）
+    const ADMIN_PASSWORD = 'admin'; // 必要なら変更
 
-    // 投稿保存
-    async function savePost(title, content, tagsRaw){
-      formMsg.textContent = '';
-      if(!content || content.trim().length === 0){
-        formMsg.textContent = '本文を入力してください。';
-        return;
-      }
-      submitBtn.disabled = true;
-      submitBtn.textContent = '投稿中…';
-      try{
-        const tags = (tagsRaw || '').split(',').map(t=>t.trim()).filter(t=>t);
+    // helper
+    function parseTags(s){ return s.split(',').map(x=>x.trim()).filter(x=>x); }
+    function fmtDate(ts){ try{ return new Date(ts?.toDate ? ts.toDate() : ts).toLocaleString(); }catch(e){ return ''; } }
+    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function showMsg(msg, err=false){ formMsg.textContent = msg; formMsg.style.color = err ? 'var(--danger)' : 'var(--muted)'; }
+
+    // 投稿処理（画像があればStorageへアップしてURLを取得）
+    async function savePostToFirestore({title, content, tags, imageFile}) {
+      // validation
+      if(!confirmEl.checked) { showMsg('「オリジナル同意」にチェックしてください。', true); return; }
+      if(!(content && content.trim()) && !imageFile){ showMsg('本文か画像のどちらかを必須にしてください', true); return; }
+      const tagsArr = parseTags(tags || '');
+      if(tagsArr.length === 0){ showMsg('タグを1つ以上入れてください（カンマ区切り）', true); return; }
+
+      showMsg('送信中…');
+
+      try {
+        let imageURL = null;
+        if(imageFile){
+          // upload
+          const imRef = sref(storage, `uploads/${Date.now()}_${imageFile.name}`);
+          const snap = await uploadBytes(imRef, imageFile);
+          imageURL = await getDownloadURL(snap.ref);
+        }
+
         await addDoc(collection(db, 'myths'), {
           title: title || '',
-          content: content,
-          tags: tags,
-          verified: false,
+          content: content || '',
+          tags: tagsArr,
+          imageURL: imageURL || null,
           author: '匿名',
+          approved: isAdmin, // adminなら自動承認
           createdAt: serverTimestamp()
         });
-        formMsg.textContent = '投稿が保存されました。';
+
         postForm.reset();
-      }catch(e){
-        console.error(e);
-        formMsg.textContent = '投稿に失敗しました: ' + (e.message || e);
-      }finally{
-        submitBtn.disabled = false;
-        submitBtn.textContent = '投稿する';
+        showMsg('投稿されました。反映まで数秒かかることがあります。');
+      } catch(err){
+        console.error(err);
+        showMsg('投稿に失敗しました：' + (err.message || err), true);
       }
     }
 
-    // 投稿一覧のレンダリング
-    function renderPosts(docs){
-      postList.innerHTML = '';
-      if(!docs.length){
-        postList.innerHTML = '<div class="muted">まだ投稿がありません。</div>';
+    // フォーム submit
+    postForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = titleEl.value.trim();
+      const content = contentEl.value.trim();
+      const tags = tagsEl.value.trim();
+      const file = imageEl.files && imageEl.files[0] ? imageEl.files[0] : null;
+      await savePostToFirestore({title, content, tags, imageFile: file});
+    });
+
+    // リアルタイムで読み込み（並び替え：作成日時 desc）
+    const q = query(collection(db, 'myths'), orderBy('createdAt', 'desc'));
+    onSnapshot(q, (snapshot) => {
+      const docs = [];
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        docs.push({ id: docSnap.id, ...data });
+      });
+      renderPosts(docs);
+    }, (err) => {
+      console.error('snapshot error', err);
+      resultInfo.textContent = '投稿を読み込めませんでした。';
+    });
+
+    // レンダリング（フィルタ対応）
+    function renderPosts(list){
+      const qword = (qEl.value || '').trim().toLowerCase();
+      const tagFilters = parseTags(tagFilterEl.value.toLowerCase());
+      postsEl.innerHTML = '';
+      let shown = 0;
+      for(const p of list){
+        // filter by q
+        if(qword){
+          const hay = ((p.title||'') + ' ' + (p.content||'')).toLowerCase();
+          if(!hay.includes(qword)) continue;
+        }
+        // filter tags: all filters must be included
+        if(tagFilters.length){
+          const pTags = (p.tags||[]).map(x=>x.toLowerCase());
+          let ok = true;
+          for(const tf of tagFilters) if(!pTags.includes(tf)) { ok = false; break; }
+          if(!ok) continue;
+        }
+        shown++;
+        const el = document.createElement('div');
+        el.className = 'card-post';
+        // safe snippets
+        const snippet = escapeHtml((p.content||'')).slice(0, 220) + ((p.content && p.content.length>220)? '...':'');
+        el.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div style="flex:1">
+              <div style="font-weight:600">${escapeHtml(p.title || '（無題）')}</div>
+              <div class="meta">${fmtDate(p.createdAt) || ''} ${p.approved ? '<span class="badge">認定</span>' : ''}</div>
+              <div style="margin-top:8px;color:var(--muted)">${snippet}</div>
+              <div class="tags">${(p.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
+            </div>
+            ${p.imageURL ? `<div style="width:96px;margin-left:10px"><img src="${p.imageURL}" style="width:100%;height:auto;border-radius:8px;object-fit:cover"></div>` : ''}
+          </div>
+        `;
+        // click -> open detail
+        el.addEventListener('click', ()=> openDetail(p.id));
+        postsEl.appendChild(el);
+      }
+      resultInfo.textContent = `投稿数: ${list.length}（表示: ${shown}）` + (isAdmin ? ' (管理者モード)' : '');
+    }
+
+    // 詳細モーダルを開く（fetch doc）
+    async function openDetail(id){
+      try{
+        const dRef = doc(db, 'myths', id);
+        const snap = await getDoc(dRef);
+        if(!snap.exists()) { alert('投稿が見つかりません'); return; }
+        const p = { id: snap.id, ...snap.data() };
+        modalTitle.textContent = p.title || '（無題）';
+        modalMeta.textContent = `${fmtDate(p.createdAt)} ${p.author ? '／' + p.author : ''} ${p.approved ? ' ✅ 認定' : ''}`;
+        modalContent.textContent = p.content || '';
+        if(p.imageURL){ modalImage.src = p.imageURL; modalImage.style.display = 'block'; } else { modalImage.style.display = 'none'; }
+        modalTags.innerHTML = (p.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('');
+        // admin actions
+        modalAdminArea.innerHTML = '';
+        if(isAdmin){
+          const approveBtn = document.createElement('button');
+          approveBtn.textContent = p.approved ? '承認取り消し' : '承認する';
+          approveBtn.className = p.approved ? '' : 'primary';
+          approveBtn.addEventListener('click', async (e)=>{
+            e.stopPropagation();
+            try{
+              await updateDoc(dRef, { approved: !p.approved });
+              alert('更新しました');
+              // modal will refresh on next open because snapshot updates
+            }catch(err){ alert('操作失敗：' + err); }
+          });
+          const delBtn = document.createElement('button');
+          delBtn.textContent = '削除';
+          delBtn.className = 'danger';
+          delBtn.addEventListener('click', async (e)=>{
+            e.stopPropagation();
+            if(!confirm('本当に削除しますか？')) return;
+            try{
+              await deleteDoc(dRef);
+              alert('削除しました');
+              closeModal();
+            }catch(err){ alert('削除失敗：' + err); }
+          });
+          modalAdminArea.appendChild(approveBtn);
+          modalAdminArea.appendChild(delBtn);
+        }
+        openModal();
+      }catch(err){
+        console.error(err);
+        alert('投稿取得に失敗しました');
+      }
+    }
+
+    // modal controls
+    function openModal(){ modalBg.style.display = 'flex'; modalBg.setAttribute('aria-hidden','false'); }
+    function closeModal(){ modalBg.style.display = 'none'; modalBg.setAttribute('aria-hidden','true'); }
+    modalClose.addEventListener('click', closeModal);
+    modalBg.addEventListener('click', (e)=> { if(e.target === modalBg) closeModal(); });
+
+    // admin login button
+    btnAdmin.addEventListener('click', ()=>{
+      if(isAdmin){
+        if(confirm('管理者ログアウトしますか？')){ isAdmin = false; btnAdmin.textContent = 'Adminログイン'; showMsg('管理者ログアウトしました'); }
         return;
       }
-      docs.forEach(docItem => {
-        const data = docItem.data();
-        const id = docItem.id;
-        const title = data.title || '（無題）';
-        const createdAt = data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : null;
-        const timeStr = createdAt ? createdAt.toLocaleString() : '日時なし';
-        const snippet = (data.content || '').slice(0, 220);
-        const tags = Array.isArray(data.tags) ? data.tags : [];
-        const div = document.createElement('div');
-        div.className = 'post';
-        div.dataset.id = id;
-        div.innerHTML = `
-          <h3>${escapeHtml(title)} ${data.verified ? '<span class="verified">✔認定</span>' : ''}</h3>
-          <div class="meta">${escapeHtml(timeStr)}</div>
-          <div class="excerpt">${linkify(snippet)}${(data.content && data.content.length>220)?'...':''}</div>
-          <div class="tags">タグ: ${escapeHtml(tags.join(', '))}</div>
-        `;
-        // クリックで詳細を開く
-        div.addEventListener('click', ()=> openModalForPost(id));
-        postList.appendChild(div);
+      const pass = prompt('管理者パスワードを入力してください');
+      if(pass === ADMIN_PASSWORD){
+        isAdmin = true;
+        btnAdmin.textContent = 'Adminログアウト';
+        showMsg('管理者モードに入りました');
+      } else {
+        alert('パスワードが違います');
+      }
+    });
+
+    // filter buttons
+    btnFilter.addEventListener('click', ()=> { /* onSnapshot will re-render using inputs */ renderPostsCache(); });
+    btnReset.addEventListener('click', ()=> { qEl.value=''; tagFilterEl.value=''; renderPostsCache(); });
+
+    // local render cache (keeps last snapshot list)
+    let lastSnapshotList = [];
+    function renderPostsCache(){
+      renderPosts(lastSnapshotList);
+    }
+    // update cache in onSnapshot
+    // modify onSnapshot above to set cache
+    // (we will override onSnapshot callback to set cache)
+    // To avoid duplication, re-define the onSnapshot with closure:
+    (function subscribe(){
+      const qRef = query(collection(db, 'myths'), orderBy('createdAt','desc'));
+      onSnapshot(qRef, (snapshot) => {
+        const docs = [];
+        snapshot.forEach(docSnap => { docs.push({ id: docSnap.id, ...docSnap.data() }); });
+        lastSnapshotList = docs;
+        renderPosts(docs);
+      }, (err) => {
+        console.error('snapshot', err);
+        resultInfo.textContent = '投稿の読み込みで問題が発生しました';
       });
-    }
+    })();
 
-    // モーダルに詳細を表示
-    async function openModalForPost(id){
-      try{
-        const docRef = doc(db, 'myths', id);
-        const s = await getDoc(docRef);
-        if(!s.exists()){
-          alert('投稿が見つかりません。');
-          return;
-        }
-        const d = s.data();
-        modalTitle.textContent = d.title || '（無題）';
-        const createdAt = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate() : null;
-        const timeStr = createdAt ? createdAt.toLocaleString() : '日時なし';
-        modalMeta.innerHTML = `${escapeHtml(d.author||'匿名')} ・ ${escapeHtml(timeStr)} ${d.verified ? '<span class="verified">✔認定</span>' : ''}`;
-        modalContent.innerHTML = linkify(d.content || '');
-        modalTags.innerHTML = d.tags && d.tags.length ? 'タグ: ' + escapeHtml(d.tags.join(', ')) : '';
-        modalBack.style.display = 'flex';
-        modalBack.setAttribute('aria-hidden', 'false');
-      }catch(e){
-        console.error(e);
-        alert('投稿の読み込みに失敗しました。');
+    // テスト用リセット（LocalStorageなど残るものがあれば消す）
+    btnClear.addEventListener('click', ()=> {
+      if(confirm('テスト用リセット：Firestoreのデータは消えません。ブラウザのキャッシュ等を消去します。よろしいですか？')){
+        try{ localStorage.clear(); sessionStorage.clear(); alert('ローカルデータを消去しました'); }catch(e){ alert('消去中にエラー'); }
       }
-    }
-
-    function closeModal(){
-      modalBack.style.display = 'none';
-      modalBack.setAttribute('aria-hidden', 'true');
-    }
-    modalClose.addEventListener('click', closeModal);
-    modalBack.addEventListener('click', (ev) => {
-      if(ev.target === modalBack) closeModal();
     });
 
-    // リアルタイムで投稿一覧を監視して表示
-    function startRealtimeList(){
-      try{
-        const q = query(collection(db, 'myths'), orderBy('createdAt', 'desc'));
-        // onSnapshot でリアルタイム更新
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          statusEl.textContent = '接続OK';
-          const docs = snapshot.docs;
-          renderPosts(docs);
-        }, (err)=>{
-          console.error('snapshot error', err);
-          statusEl.textContent = '読み込みエラー';
-        });
-        return unsubscribe;
-      }catch(e){
-        console.error(e);
-        statusEl.textContent = '初期化エラー';
-      }
-    }
-
-    // イベント登録
-    postForm.addEventListener('submit', async (ev)=>{
-      ev.preventDefault();
-      await savePost(titleEl.value, contentEl.value, tagsEl.value);
-    });
-
-    // 初期化
-    startRealtimeList();
-    statusEl.textContent = '読み込み中...';
+    // 初期メッセージ
+    showMsg('Firebase接続済み。投稿はFirestoreに保存されます（画像はStorage）。');
   </script>
 </body>
 </html>
