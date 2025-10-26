@@ -1,147 +1,273 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>神話投稿サイト</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>神話投稿サイト（安定版）</title>
   <style>
-    body {
-      font-family: "Helvetica Neue", Arial, sans-serif;
-      background-color: #fff;
-      color: #333;
-      margin: 0;
-      padding: 20px;
-      max-width: 700px;
-      margin: auto;
+    :root{
+      --bg:#ffffff; --text:#111; --muted:#666; --card:#fbfbfb; --accent:#111;
     }
-    h1 {
-      text-align: center;
-      font-weight: 600;
-      border-bottom: 2px solid #eee;
-      padding-bottom: 10px;
-    }
-    form {
-      margin: 20px 0;
-      padding: 20px;
-      border: 1px solid #eee;
-      border-radius: 8px;
-      background-color: #fafafa;
-    }
-    input, textarea {
-      width: 100%;
-      padding: 8px;
-      margin: 8px 0;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      font-size: 1em;
-    }
-    button {
-      background-color: #333;
-      color: #fff;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #555;
-    }
-    .post {
-      border-bottom: 1px solid #eee;
-      padding: 10px 0;
-    }
-    .verified {
-      color: #0080ff;
-      font-weight: bold;
-    }
-    .tags {
-      color: #666;
-      font-size: 0.9em;
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family: -apple-system, "Helvetica Neue", "Noto Sans JP", Roboto, Arial;}
+    .wrap{max-width:800px;margin:0 auto;padding:16px;box-sizing:border-box;}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+    h1{font-size:20px;margin:0;}
+    .sub{font-size:13px;color:var(--muted);}
+    form.card{background:var(--card);padding:12px;border-radius:10px;border:1px solid #eee;}
+    input[type="text"], textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #e6e6e6;margin-top:8px;box-sizing:border-box;font-size:15px;}
+    textarea{min-height:100px;resize:vertical;}
+    button{background:var(--accent);color:white;border:none;padding:10px 12px;border-radius:8px;font-size:15px;cursor:pointer;}
+    button[disabled]{opacity:.6;cursor:default;}
+    .posts{margin-top:18px;display:flex;flex-direction:column;gap:12px;}
+    .post{background:white;padding:12px;border-radius:10px;border:1px solid #f0f0f0;cursor:pointer;}
+    .post h3{margin:0 0 6px 0;font-size:16px;}
+    .meta{font-size:12px;color:var(--muted);margin-bottom:6px;}
+    .tags{margin-top:8px;font-size:13px;color:var(--muted);}
+    .verified{display:inline-block;background:#eef6ff;color:#0366d6;border-radius:999px;padding:4px 8px;font-size:12px;margin-left:8px}
+    /* modal */
+    .modal-back{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:60;padding:16px;}
+    .modal{background:white;border-radius:12px;max-width:720px;width:100%;max-height:90vh;overflow:auto;padding:16px;box-sizing:border-box;}
+    .modal header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+    .close-btn{background:transparent;border:1px solid #ddd;padding:6px 8px;border-radius:8px;cursor:pointer;}
+    .muted{color:var(--muted);font-size:13px;}
+    @media (max-width:520px){
+      h1{font-size:18px;}
+      button{font-size:14px;padding:9px 10px;}
     }
   </style>
 </head>
 <body>
-  <h1>神話投稿サイト</h1>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>神話投稿サイト</h1>
+        <div class="sub">オリジナルの神話のみ（試作） — 投稿をタップすると詳細が見られます</div>
+      </div>
+      <div class="sub" id="status">ロード中…</div>
+    </header>
 
-  <!-- 投稿フォーム -->
-  <form id="postForm">
-    <input type="text" id="title" placeholder="タイトル" required><br>
-    <textarea id="content" placeholder="神話の内容" required></textarea><br>
-    <input type="text" id="tags" placeholder="タグ（カンマ区切り）"><br>
-    <button type="submit">投稿する</button>
-  </form>
+    <form id="postForm" class="card" autocomplete="off">
+      <label class="muted">タイトル（任意）</label>
+      <input id="title" type="text" placeholder="短いタイトル">
 
-  <h2>最新の投稿</h2>
-  <div id="postList"></div>
+      <label class="muted">本文（必須）</label>
+      <textarea id="content" placeholder="神話の本文を入力してください"></textarea>
 
-  <!-- Firebase SDK & Script -->
+      <label class="muted">タグ（カンマ区切り）</label>
+      <input id="tags" type="text" placeholder="例：創世,風,女神">
+
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+        <button id="submitBtn" type="submit">投稿する</button>
+        <div class="muted" style="font-size:13px;">投稿は全員に見えます（Firestore保存）</div>
+      </div>
+      <div id="formMsg" class="muted" style="margin-top:8px;"></div>
+    </form>
+
+    <h2 style="margin-top:18px;margin-bottom:8px;">最新の投稿</h2>
+    <div id="postList" class="posts"></div>
+  </div>
+
+  <!-- モーダル（投稿詳細） -->
+  <div id="modalBack" class="modal-back" role="dialog" aria-hidden="true">
+    <div class="modal" role="document">
+      <header>
+        <div>
+          <strong id="modalTitle"></strong>
+          <div id="modalMeta" class="muted" style="margin-top:6px;"></div>
+        </div>
+        <div>
+          <button id="modalClose" class="close-btn">閉じる</button>
+        </div>
+      </header>
+      <div id="modalContent" style="white-space:pre-wrap;line-height:1.6;"></div>
+      <div id="modalTags" class="tags" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <!-- Firebase & App script -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      query,
+      orderBy,
+      onSnapshot,
+      serverTimestamp,
+      doc,
+      getDoc
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-    // 🔧 あなたのFirebase設定情報を貼ってください（※このままでは動きません）
-firebaseConfig = {
-  apiKey: "AIzaSyD18XhUujCSo_ezYyf_rV8crnjBz7Pv1jY",
-  authDomain: "sinwasakusei.firebaseapp.com",
-  projectId: "sinwasakusei",
-  storageBucket: "sinwasakusei.firebasestorage.app",
-  messagingSenderId: "135038486513",
-  appId: "1:135038486513:web:1791f88ca12571560ba650",
-  measurementId: "G-CRQ4R3MTNX"
-};
+    // ======= ここにあなたの Firebase 設定を貼る =======
+    // Firebase コンソール -> プロジェクト設定 -> アプリのスニペット で取得できます
+    const firebaseConfig = {
+      apiKey: "あなたのAPIキー",
+      authDomain: "あなたのプロジェクトID.firebaseapp.com",
+      projectId: "あなたのプロジェクトID",
+      storageBucket: "あなたのプロジェクトID.appspot.com",
+      messagingSenderId: "数字",
+      appId: "アプリID"
+    };
+    // ==============================================
 
+    // 初期化
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // 投稿保存処理
-    async function savePost(title, content, tags) {
-      try {
-        await addDoc(collection(db, "myths"), {
-          title,
-          content,
-          tags: tags.split(",").map(t => t.trim()).filter(t => t),
-          author: "匿名",
+    // DOM
+    const postForm = document.getElementById('postForm');
+    const titleEl = document.getElementById('title');
+    const contentEl = document.getElementById('content');
+    const tagsEl = document.getElementById('tags');
+    const submitBtn = document.getElementById('submitBtn');
+    const formMsg = document.getElementById('formMsg');
+    const statusEl = document.getElementById('status');
+    const postList = document.getElementById('postList');
+
+    const modalBack = document.getElementById('modalBack');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalMeta = document.getElementById('modalMeta');
+    const modalContent = document.getElementById('modalContent');
+    const modalTags = document.getElementById('modalTags');
+    const modalClose = document.getElementById('modalClose');
+
+    // エスケープ（XSS対策）
+    function escapeHtml(s){
+      if(s == null) return '';
+      return String(s).replace(/[&<>"'`]/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'
+      }[c]));
+    }
+    // URLをリンク化（表示用）
+    function linkify(text){
+      if(!text) return '';
+      const esc = escapeHtml(text);
+      return esc.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>').replace(/\n/g,'<br>');
+    }
+
+    // 投稿保存
+    async function savePost(title, content, tagsRaw){
+      formMsg.textContent = '';
+      if(!content || content.trim().length === 0){
+        formMsg.textContent = '本文を入力してください。';
+        return;
+      }
+      submitBtn.disabled = true;
+      submitBtn.textContent = '投稿中…';
+      try{
+        const tags = (tagsRaw || '').split(',').map(t=>t.trim()).filter(t=>t);
+        await addDoc(collection(db, 'myths'), {
+          title: title || '',
+          content: content,
+          tags: tags,
           verified: false,
-          createdAt: new Date()
+          author: '匿名',
+          createdAt: serverTimestamp()
         });
-        alert("投稿が保存されました！");
-        loadPosts();
-      } catch (error) {
-        alert("エラー：" + error);
+        formMsg.textContent = '投稿が保存されました。';
+        postForm.reset();
+      }catch(e){
+        console.error(e);
+        formMsg.textContent = '投稿に失敗しました: ' + (e.message || e);
+      }finally{
+        submitBtn.disabled = false;
+        submitBtn.textContent = '投稿する';
       }
     }
 
-    // 投稿フォーム送信イベント
-    document.querySelector("#postForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const title = document.querySelector("#title").value;
-      const content = document.querySelector("#content").value;
-      const tags = document.querySelector("#tags").value;
-      await savePost(title, content, tags);
-      e.target.reset();
-    });
-
-    // 投稿一覧を読み込み
-    async function loadPosts() {
-      const q = query(collection(db, "myths"), orderBy("createdAt", "desc"));
-      const querySnapshot = await getDocs(q);
-      const postList = document.getElementById("postList");
-      postList.innerHTML = "";
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        const div = document.createElement("div");
-        div.classList.add("post");
+    // 投稿一覧のレンダリング
+    function renderPosts(docs){
+      postList.innerHTML = '';
+      if(!docs.length){
+        postList.innerHTML = '<div class="muted">まだ投稿がありません。</div>';
+        return;
+      }
+      docs.forEach(docItem => {
+        const data = docItem.data();
+        const id = docItem.id;
+        const title = data.title || '（無題）';
+        const createdAt = data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : null;
+        const timeStr = createdAt ? createdAt.toLocaleString() : '日時なし';
+        const snippet = (data.content || '').slice(0, 220);
+        const tags = Array.isArray(data.tags) ? data.tags : [];
+        const div = document.createElement('div');
+        div.className = 'post';
+        div.dataset.id = id;
         div.innerHTML = `
-          <h3>${data.title} ${data.verified ? '<span class="verified">✔認定</span>' : ''}</h3>
-          <p>${data.content}</p>
-          <p class="tags">タグ: ${data.tags.join(", ")}</p>
+          <h3>${escapeHtml(title)} ${data.verified ? '<span class="verified">✔認定</span>' : ''}</h3>
+          <div class="meta">${escapeHtml(timeStr)}</div>
+          <div class="excerpt">${linkify(snippet)}${(data.content && data.content.length>220)?'...':''}</div>
+          <div class="tags">タグ: ${escapeHtml(tags.join(', '))}</div>
         `;
+        // クリックで詳細を開く
+        div.addEventListener('click', ()=> openModalForPost(id));
         postList.appendChild(div);
       });
     }
 
-    // ページ読み込み時に投稿一覧を表示
-    loadPosts();
+    // モーダルに詳細を表示
+    async function openModalForPost(id){
+      try{
+        const docRef = doc(db, 'myths', id);
+        const s = await getDoc(docRef);
+        if(!s.exists()){
+          alert('投稿が見つかりません。');
+          return;
+        }
+        const d = s.data();
+        modalTitle.textContent = d.title || '（無題）';
+        const createdAt = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate() : null;
+        const timeStr = createdAt ? createdAt.toLocaleString() : '日時なし';
+        modalMeta.innerHTML = `${escapeHtml(d.author||'匿名')} ・ ${escapeHtml(timeStr)} ${d.verified ? '<span class="verified">✔認定</span>' : ''}`;
+        modalContent.innerHTML = linkify(d.content || '');
+        modalTags.innerHTML = d.tags && d.tags.length ? 'タグ: ' + escapeHtml(d.tags.join(', ')) : '';
+        modalBack.style.display = 'flex';
+        modalBack.setAttribute('aria-hidden', 'false');
+      }catch(e){
+        console.error(e);
+        alert('投稿の読み込みに失敗しました。');
+      }
+    }
+
+    function closeModal(){
+      modalBack.style.display = 'none';
+      modalBack.setAttribute('aria-hidden', 'true');
+    }
+    modalClose.addEventListener('click', closeModal);
+    modalBack.addEventListener('click', (ev) => {
+      if(ev.target === modalBack) closeModal();
+    });
+
+    // リアルタイムで投稿一覧を監視して表示
+    function startRealtimeList(){
+      try{
+        const q = query(collection(db, 'myths'), orderBy('createdAt', 'desc'));
+        // onSnapshot でリアルタイム更新
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          statusEl.textContent = '接続OK';
+          const docs = snapshot.docs;
+          renderPosts(docs);
+        }, (err)=>{
+          console.error('snapshot error', err);
+          statusEl.textContent = '読み込みエラー';
+        });
+        return unsubscribe;
+      }catch(e){
+        console.error(e);
+        statusEl.textContent = '初期化エラー';
+      }
+    }
+
+    // イベント登録
+    postForm.addEventListener('submit', async (ev)=>{
+      ev.preventDefault();
+      await savePost(titleEl.value, contentEl.value, tagsEl.value);
+    });
+
+    // 初期化
+    startRealtimeList();
+    statusEl.textContent = '読み込み中...';
   </script>
 </body>
 </html>
